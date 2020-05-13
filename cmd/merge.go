@@ -19,7 +19,6 @@ import (
 	"github.com/spf13/cobra"
 	"gitlab-cli/cmd/models"
 	"gitlab-cli/utils"
-	"os/exec"
 )
 
 var localFlags = []models.Flag{
@@ -41,19 +40,17 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		var createMergeRequest models.CreateMergeRequest
-
-		command := exec.Command("basename `git rev-parse --show-toplevel`\n")
-		res, _ := command.Output()
-		projectName := string(res)
+		projectName := utils.GetProjectName()
 
 		projects := gitlabClient.GetProjects()
 		var selectedProject models.ProjectResponse
 		for _, project := range projects {
-			if project.Name == projectName {
+			if project.Path == projectName {
 				selectedProject = project
 			}
 		}
 
+		println(selectedProject.ID)
 		if utils.IsFlagMode(cmd.Flags(), localFlags) {
 			utils.ValidateAllRequiredFlags(cmd.Flags(), localFlags)
 			sourceBranch, _ := cmd.Flags().GetString("sourceBranch")
@@ -91,10 +88,6 @@ to quickly create a Cobra application.`,
 		println("Merge request create successfully!")
 		println(response.WebURL)
 	},
-}
-
-func getRequestFromFlags() {
-
 }
 
 func init() {
