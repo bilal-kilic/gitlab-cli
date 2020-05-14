@@ -31,16 +31,9 @@ var cfgFile string
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "gitlab-cli",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	//	Run: func(cmd *cobra.Command, args []string) { },
+	Short: "A cli tool to manage gitlab operations",
+	Long: `gitlab-cli is a cli tool to help you manage gitlab operation without leaving the comfort of your terminal 
+such as creating merge requests, cloning projects and many more.`,
 }
 
 var gitlabClient *client.GitlabApiClient
@@ -56,21 +49,11 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig, initGitlabClient)
-
-
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.gitlab-cli.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
 }
 
-func initGitlabClient()  {
+func initGitlabClient() {
 	gitlabClient = client.NewGitlabClient(&configuration.GitlabConfiguration{
 		Url:   viper.GetString("url"),
 		Token: viper.GetString("token"),
@@ -99,9 +82,7 @@ func initConfig() {
 	viper.SetConfigType("json")
 
 	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
-	} else {
+	if err := viper.ReadInConfig(); err != nil {
 		println(err)
 	}
 }

@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/valyala/fasthttp"
 	"gitlab-cli/cmd/models"
@@ -23,12 +24,11 @@ func NewGitlabClient(config *configuration.GitlabConfiguration) *GitlabApiClient
 			MaxIdleConnDuration: time.Millisecond * 5000,
 			ReadTimeout:         time.Millisecond * 500,
 			WriteTimeout:        time.Millisecond * 500,
-
 		},
 	}
 }
 
-func (client *GitlabApiClient) GetToken(username string, password string) models.GetTokenResponse {
+func (client *GitlabApiClient) GetToken(username string, password string) (models.GetTokenResponse, error) {
 	getTokenRequest := models.GetTokenRequest{
 		GrantType: "password",
 		UserName:  username,
@@ -44,30 +44,40 @@ func (client *GitlabApiClient) GetToken(username string, password string) models
 
 	response := fasthttp.AcquireResponse()
 	if err := fasthttp.Do(request, response); err != nil {
-		fmt.Printf("An error occurred trying to get Oauth token", err)
+		return models.GetTokenResponse{}, err
+	}
+
+	if response.StatusCode() != http.StatusOK {
+		return models.GetTokenResponse{}, errors.New(fmt.Sprintf("%s", response.Body()))
 	}
 
 	var responseBody = models.GetTokenResponse{}
-	_ = json.Unmarshal(response.Body(), &responseBody)
+	if err := json.Unmarshal(response.Body(), &responseBody); err != nil {
+		return models.GetTokenResponse{}, err
+	}
 
-	return responseBody
+	return responseBody, nil
 }
 
-func (client *GitlabApiClient) GetProjects() []models.ProjectResponse {
+func (client *GitlabApiClient) GetProjects() ([]models.ProjectResponse, error) {
 	page := 1
-	firstPage, hasNextPage := client.getProjectsPage(1)
+	firstPage, hasNextPage, err := client.getProjectsPage(1)
 	result := append(firstPage)
 	for hasNextPage {
+		if err != nil {
+			return nil, err
+		}
+
 		page++
 		var currentPage []models.ProjectResponse
-		currentPage, hasNextPage = client.getProjectsPage(page)
+		currentPage, hasNextPage, err = client.getProjectsPage(page)
 		result = append(result, currentPage...)
 	}
 
-	return result
+	return result, nil
 }
 
-func (client *GitlabApiClient) getProjectsPage(page int) ([]models.ProjectResponse, bool) {
+func (client *GitlabApiClient) getProjectsPage(page int) ([]models.ProjectResponse, bool, error) {
 	request := fasthttp.AcquireRequest()
 	request.Header.SetContentType("application/json")
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.config.Token))
@@ -76,20 +86,22 @@ func (client *GitlabApiClient) getProjectsPage(page int) ([]models.ProjectRespon
 
 	response := fasthttp.AcquireResponse()
 	if err := fasthttp.Do(request, response); err != nil {
-		fmt.Printf("An error occurred trying to get Oauth token", err)
+		return nil, false, err
 	}
 
 	var responseBody []models.ProjectResponse
-	_ = json.Unmarshal(response.Body(), &responseBody)
+	if err := json.Unmarshal(response.Body(), &responseBody); err != nil {
+		return nil, false, err
+	}
 
 	if response.Header.Peek("X-Next-Page") == nil {
-		return responseBody, false
+		return responseBody, false, nil
 	} else {
-		return responseBody, true
+		return responseBody, true, nil
 	}
 }
 
-func (client *GitlabApiClient) GetProjectBranches(projectId int64) []models.GetBranchResponse {
+func (client *GitlabApiClient) GetProjectBranches(projectId int64) ([]models.GetBranchResponse, error) {
 	request := fasthttp.AcquireRequest()
 	request.Header.SetContentType("application/json")
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.config.Token))
@@ -98,16 +110,18 @@ func (client *GitlabApiClient) GetProjectBranches(projectId int64) []models.GetB
 
 	response := fasthttp.AcquireResponse()
 	if err := fasthttp.Do(request, response); err != nil {
-		fmt.Printf("An error occurred trying to get branches token", err)
+		return nil, err
 	}
 
 	var responseBody []models.GetBranchResponse
-	_ = json.Unmarshal(response.Body(), &responseBody)
+	if err := json.Unmarshal(response.Body(), &responseBody); err != nil {
+		return nil, err
+	}
 
-	return responseBody
+	return responseBody, nil
 }
 
-func (client *GitlabApiClient) CreateMergeRequest(id int64, createMergeRequest models.CreateMergeRequest) models.CreateMergeRequestResponse {
+func (client *GitlabApiClient) CreateMergeRequest(id int64, createMergeRequest models.CreateMergeRequest) (models.CreateMergeRequestResponse, error) {
 	reqJson, _ := json.Marshal(createMergeRequest)
 
 	request := fasthttp.AcquireRequest()
@@ -119,15 +133,17 @@ func (client *GitlabApiClient) CreateMergeRequest(id int64, createMergeRequest m
 
 	response := fasthttp.AcquireResponse()
 	if err := fasthttp.Do(request, response); err != nil {
-		fmt.Printf("An error occurred trying to create merge request. Error: ", err)
+		return models.CreateMergeRequestResponse{}, err
 	}
 
 	if response.StatusCode() != http.StatusCreated {
-		fmt.Printf("An error occurred trying to create merge request. Error: ", response.Body())
+		return models.CreateMergeRequestResponse{}, errors.New(fmt.Sprintf("%q", response.Body()))
 	}
 
 	var responseBody = models.CreateMergeRequestResponse{}
-	_ = json.Unmarshal(response.Body(), &responseBody)
+	if err := json.Unmarshal(response.Body(), &responseBody); err != nil {
+		return models.CreateMergeRequestResponse{}, err
+	}
 
-	return responseBody
+	return responseBody, nil
 }

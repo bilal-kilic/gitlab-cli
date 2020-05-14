@@ -1,5 +1,5 @@
 /*
-Copyright © 2020 NAME HERE <EMAIL ADDRESS>
+Copyright © 2020 NAME HERE <bkilic61@gmail.com>
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ limitations under the License.
 package cmd
 
 import (
+	"errors"
 	"github.com/spf13/cobra"
 	"gitlab-cli/cmd/models"
 	"gitlab-cli/utils"
@@ -31,23 +32,31 @@ var localFlags = []models.Flag{
 // mergeCmd represents the merge command
 var mergeCmd = &cobra.Command{
 	Use:   "merge",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Short: "Use to merge given branches with options",
+	Long: ``,
+	RunE: func(cmd *cobra.Command, args []string) error{
 		var createMergeRequest models.CreateMergeRequest
-		projectName := utils.GetProjectName()
+		projectName, err := utils.GetProjectName()
 
-		projects := gitlabClient.GetProjects()
+		if err != nil {
+			return err
+		}
+
+		projects, err := gitlabClient.GetProjects()
+
+		if err != nil {
+			return err
+		}
+
 		var selectedProject models.ProjectResponse
 		for _, project := range projects {
 			if project.Path == projectName {
 				selectedProject = project
 			}
+		}
+
+		if selectedProject.Name == "" {
+			return errors.New("Project not found. Either it does not exists or you don't have required permissions.")
 		}
 
 		println(selectedProject.ID)
@@ -65,7 +74,11 @@ to quickly create a Cobra application.`,
 				Description:  description,
 			}
 		} else {
-			branches := gitlabClient.GetProjectBranches(selectedProject.ID)
+			branches, err := gitlabClient.GetProjectBranches(selectedProject.ID)
+			if err != nil {
+				 return err
+			}
+
 			branchNames := make([]string, len(projects))
 			for i, branch := range branches {
 				branchNames[i] = branch.Name
@@ -83,10 +96,15 @@ to quickly create a Cobra application.`,
 			}
 		}
 
-		response := gitlabClient.CreateMergeRequest(selectedProject.ID, createMergeRequest)
+		response, err := gitlabClient.CreateMergeRequest(selectedProject.ID, createMergeRequest)
+
+		if err != nil {
+			return err
+		}
 
 		println("Merge request create successfully!")
 		println(response.WebURL)
+		return nil
 	},
 }
 

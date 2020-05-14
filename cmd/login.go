@@ -1,5 +1,5 @@
 /*
-Copyright © 2020 NAME HERE <EMAIL ADDRESS>
+Copyright © 2020 NAME HERE <bkilic61@gmail.com>
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,33 +24,29 @@ import (
 // loginCmd represents the login command
 var loginCmd = &cobra.Command{
 	Use:   "login",
-	Short: "Used to login gitlab-cli",
-	Long:  `Used to login gitlab-cli.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Short: "Use to login gitlab-cli",
+	Long:  ``,
+	RunE: func(cmd *cobra.Command, args []string) error {
 		url  := utils.GetPromptString("url", false)
 		userName := utils.GetPromptString("username", false)
 		password := utils.GetPromptString("password", true)
 
 		//initialize client with url first time logging in
 		initGitlabClient()
-		tokenResponse := gitlabClient.GetToken(userName, password)
+		tokenResponse, err := gitlabClient.GetToken(userName, password)
+
+		if err != nil {
+			return err
+		}
+
 		viper.Set("url", url)
 		viper.Set("token", tokenResponse)
 		_ = viper.SafeWriteConfig()
 		println("Login Successful!")
+		return nil
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(loginCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// loginCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// loginCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
